@@ -11,16 +11,24 @@ bl_info = {
 }
 
 
+class BordermanProperties(bpy.types.PropertyGroup):
+    """Groups all properties for this addon together."""
+
+    pass
+
+
 # アドオンで使用するために定義したクラス
-class_list = []
+class_list = [BordermanProperties]
 
 
 def register_props():
-    pass
+    bpy.types.Scene.borderman_props = bpy.props.PointerProperty(
+        type=BordermanProperties
+    )
 
 
 def unregister_props():
-    pass
+    del bpy.types.Scene.borderman_props
 
 
 def register():
