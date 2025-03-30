@@ -1,5 +1,16 @@
-import bpy
-from dataclasses import dataclass
+if "bpy" not in locals():
+    import bpy
+    import datetime
+    from dataclasses import dataclass
+    import os
+    import secrets
+
+    import gpu
+    from . import shader_utils
+else:
+    import importlib
+
+    importlib.reload(shader_utils)
 
 
 @dataclass(frozen=True)
@@ -17,19 +28,19 @@ def get_screen_rect() -> Rect:
     return Rect(0, 0, round(width), round(height))
 
 
-def get_strip_info(placeholder_strip: bpy.types.ColorStrip) -> Rect:
+def get_placeholder_info(placeholder_strip: bpy.types.ColorStrip) -> Rect:
+    # スクリーン解像度
     screen_rect = get_screen_rect()
-    strip_origin = placeholder_strip.transform.origin
-    strip_w = screen_rect.w * placeholder_strip.transform.scale_x
-    strip_h = screen_rect.h * placeholder_strip.transform.scale_y
-    global_origin_x = (
-        screen_rect.w * strip_origin[0] + placeholder_strip.transform.offset_x
-    )
-    global_origin_y = (
-        screen_rect.h * strip_origin[1] + placeholder_strip.transform.offset_y
-    )
-
-    return Rect(global_origin_x, global_origin_y, strip_w, strip_h)
+    trans = placeholder_strip.transform
+    # ストリップのサイズ
+    strip_w = screen_rect.w * trans.scale_x
+    strip_h = screen_rect.h * trans.scale_y
+    # ストリップの位置
+    xy = [
+        trans.offset_x,
+        trans.offset_y,
+    ]
+    return Rect(*[round(p) for p in (xy[0], xy[1], strip_w, strip_h)])
 
 
 def move_center(strip: bpy.types.ColorStrip):
@@ -74,8 +85,131 @@ def guess_available_channel(frame_start, frame_end, target_channel, seqs):
     return diff[0]
 
 
-def showMessageBox(message="", title="Message Box", icon="INFO"):
+def showMessageBox(messages=[""], title="Message Box", icon="INFO"):
     def draw(self, context):
-        self.layout.label(text=message)
+        for msg in messages:
+            self.layout.label(text=msg)
 
     bpy.context.window_manager.popup_menu(draw, title=title, icon=icon)
+
+
+def normalize_image_dir(image_dir):
+    # `//`による相対パスを展開
+    clean_image_dir = bpy.path.abspath(image_dir)
+    # `//`の展開成功時(or もともと絶対パスが指定されている場合)
+    if os.path.isabs(clean_image_dir):
+        return clean_image_dir
+    # 展開失敗時, つまり相対パスが指定された場合
+    else:
+        # .blendファイルが保存されているなら、
+        # .blendファイルのパスから擬似的に`//`と同様にパス展開
+        if len(bpy.data.filepath) > 0:
+            base_dir = os.path.dirname(bpy.data.filepath)
+            return os.path.normpath(os.path.join(base_dir, clean_image_dir))
+        # .blendファイルが保存されていない場合
+        else:
+            return None
+
+
+def create_border_strip(
+    src_strip: bpy.types.Strip,
+    image_dir,
+    shape_type,
+    border_size,
+    border_color,
+    corner_radius,
+):
+    if src_strip.name:
+        file_name = f"{src_strip.name}"
+    else:
+        file_name = f"{src_strip.get('placeholder_id')}"
+
+    output_path = os.path.join(image_dir, bpy.path.clean_name(file_name) + ".png")
+    rect = get_placeholder_info(src_strip)
+    create_border_image(
+        output_path, rect, shape_type, border_size, border_color, corner_radius
+    )
+
+    rel_image_path = (
+        bpy.path.relpath(output_path) if len(bpy.data.filepath) > 0 else output_path
+    )
+    # print(f"rel_image_path: {rel_image_path}")
+    se = bpy.context.scene.sequence_editor
+    img_strip = se.strips.new_image(
+        bpy.path.basename(rel_image_path),
+        rel_image_path,
+        src_strip.channel + 1,
+        src_strip.frame_final_start,
+    )
+    img_strip.frame_final_end = src_strip.frame_final_end
+    img_strip.transform.origin[0] = 0
+    img_strip.transform.origin[1] = 1.0
+    img_strip.color_tag = "COLOR_01"
+    return img_strip
+
+
+def _make_unique_name(prefix="___"):
+    return "{0}{1}_{2}".format(
+        prefix, secrets.token_urlsafe(6), datetime.datetime.now().timestamp()
+    )
+
+
+def create_border_image(
+    output_path, strip_rect, shape_type, border_size, border_color, corner_radius
+):
+    border_rect = Rect(
+        0,
+        0,
+        int(strip_rect.w + (border_size * 2)),
+        int(strip_rect.h + (border_size * 2)),
+    )
+
+    image_name = _make_unique_name()
+    screen_size = max(border_rect.w, border_rect.h)
+    screen_offset = (0, 0)
+    if border_rect.w > border_rect.h:
+        screen_offset = (0, round((border_rect.w - border_rect.h) / 2))
+    elif border_rect.w < border_rect.h:
+        screen_offset = (round((border_rect.h - border_rect.w) / 2), 0)
+
+    offscreen = gpu.types.GPUOffScreen(screen_size, screen_size)
+
+    with offscreen.bind():
+        fb = gpu.state.active_framebuffer_get()
+        fb.clear(color=(0.0, 0.0, 0.0, 0.0))
+
+        print(f"shape_type: {shape_type}")
+        if shape_type == "rectangle":
+            # shader_utils.draw_rectagle_border(border_rect, strip_rect, border_color)
+            shader_utils.draw_rounded_rectagle_border(
+                border_rect, strip_rect, border_color, corner_radius
+            )
+        else:
+            shader_utils.draw_ellipse_border(border_rect, strip_rect, border_color)
+
+        buffer = fb.read_color(
+            screen_offset[0],
+            screen_offset[1],
+            border_rect.w,
+            border_rect.h,
+            4,
+            0,
+            "UBYTE",
+        )
+
+    offscreen.free()
+    if image_name in bpy.data.images:
+        img = bpy.data.images[image_name]
+        bpy.data.images.remove(img)
+
+    img = bpy.data.images.new(
+        image_name, width=border_rect.w, height=border_rect.h, alpha=True
+    )
+    img.file_format = "PNG"
+    img.alpha_mode = "STRAIGHT"
+    img.filepath = output_path
+    buffer.dimensions = border_rect.w * border_rect.h * 4
+    img.pixels = [v / 255 for v in buffer]
+    img.save()
+    bpy.data.images.remove(img)
+    print(f"create_border_image: {output_path}")
