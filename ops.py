@@ -1,8 +1,14 @@
-import bpy
-from bpy.types import Context, Event
-import datetime
+if "bpy" not in locals():
+    import bpy
+    from bpy.types import Context, Event
+    import datetime
+    import os
+    from . import utils
+else:
+    import importlib
 
-from . import utils
+    importlib.reload(utils)
+
 
 DEFAULT_PLACEHOLDER_DURATION = 30
 DEFAULT_PLACEHOLDER_CHANNEL_NO = 3
@@ -72,6 +78,7 @@ class AddPlaceholder(bpy.types.Operator):
 
 class ReplacePlaceholdersToBorder(bpy.types.Operator):
     _timer = None
+    _messages_no_placeholder = ("",)
 
     @classmethod
     def poll(cls, context):
@@ -80,18 +87,116 @@ class ReplacePlaceholdersToBorder(bpy.types.Operator):
     def get_target_placeholders(self, context: Context):
         return []
 
+    def add_border_strip(
+        self,
+        context: Context,
+        target_strip_list,
+        image_dir,
+        shape_type,
+        border_color,
+        border_size,
+        corner_radius,
+    ):
+        screen_rect = utils.get_screen_rect()
+        for strip in target_strip_list:
+            rect = utils.get_placeholder_info(strip)
+            img_strip = utils.create_border_strip(
+                strip,
+                image_dir,
+                shape_type,
+                border_size,
+                border_color,
+                corner_radius,
+            )
+            strip_center = (rect.x + (rect.w / 2), rect.y - (rect.h / 2))
+            # スクリーンの中央を取得
+            #    image stripはスクリーンの中央が基準のようなので..
+            screen_center = (screen_rect.w / 2, -1 * screen_rect.h / 2)
+            # placeholder stripと追加したimage stripの位置の差を取得
+            diff_center = (
+                round(strip_center[0] - screen_center[0]),
+                round(strip_center[1] - screen_center[1]),
+            )
+            # image stripの中心をplaceholder stripの中心に移動
+            img_strip.transform.offset_x = diff_center[0]
+            img_strip.transform.offset_y = diff_center[1]
+            # image stripのメタ情報を設定
+            img_strip[CUSTOM_KEY_GENERATER] = ADDON_NAME
+            img_strip[CUSTOM_KEY_STRIP_TYPE] = STRIP_TYPE_BORDER
+
+            # image stripのチャンネルを更新
+            #   stripが重なることを防ぐため、placeholder stripを削除してから更新する
+            org_channel = strip.channel
+            context.scene.sequence_editor.strips.remove(strip)
+            img_strip.channel = org_channel
+
+        return {"FINISHED"}
+
     def modal(self, context: Context, event: Event):
         if event.type == "TIMER":
             context.window_manager.event_timer_remove(self._timer)
+
             selected_placeholders = self.get_target_placeholders(context)
+            if len(selected_placeholders) == 0:
+                utils.showMessageBox(
+                    messages=self._messages_no_placeholder,
+                    title="処理対象がありません!!",
+                    icon="ERROR",
+                )
+                return {"CANCELLED"}
+
+            props = context.scene.borderman_props
+            if not props.image_dir:
+                utils.showMessageBox(
+                    messages=self._messages_no_placeholder,
+                    title="枠線画像ファイルの保存ディレクトリが指定されていません。",
+                    icon="ERROR",
+                )
+                return {"CANCELLED"}
+            image_dir = utils.normalize_image_dir(props.image_dir)
+            if not image_dir:
+                # 事前にプロジェクトの保存をチェックするため、通常ありえない
+                utils.showMessageBox(
+                    messages=self._messages_no_placeholder,
+                    title="プロジェクトを保存してから実行してください。",
+                    icon="ERROR",
+                )
+                return {"CANCELLED"}
+            if not os.path.exists(image_dir):
+                self.report(
+                    {"INFO"},
+                    f"画像保存ディレクトリが存在しないため作成:{image_dir}",
+                )
+                os.makedirs(image_dir)
+
             bpy.ops.sequencer.select_all(action="DESELECT")
-            ret = add_border_strip(context, selected_placeholders)
+            ret = self.add_border_strip(
+                context,
+                selected_placeholders,
+                image_dir,
+                props.shape_type,
+                props.border_color,
+                props.border_size,
+                props.corner_radius,
+            )
             self._timer = None
             return ret
         else:
             return {"RUNNING_MODAL"}
 
     def invoke(self, context: Context, event: Event):
+        # blendファイルの存在チェック
+        if not bpy.data.is_saved:
+            utils.showMessageBox(
+                messages=(
+                    "画像ファイルをプロジェクトからの相対パスで保存するため、",
+                    "プロジェクトを保存してから実行してください!!",
+                ),
+                title="プロジェクトファイル(.blend)を保存してください!!",
+                icon="ERROR",
+            )
+            return {"CANCELLED"}
+
         if self._timer:
             self.report({"WARNING"}, "処理中のためキャンセル")
             return {"CANCELLED"}
@@ -107,6 +212,8 @@ class ReplaceSelectedPlaceholdersToBorder(ReplacePlaceholdersToBorder):
     bl_description = "Replace selected placeholders to border strip."
     bl_options = {"REGISTER", "UNDO"}
 
+    _messages_no_placeholder = ("1つ以上のplaceholderを選択してください!!",)
+
     def get_target_placeholders(self, context: Context):
         return [strip for strip in context.selected_strips if is_placeholder(strip)]
 
@@ -117,16 +224,13 @@ class ReplaceAllPlaceholdersToBorder(ReplacePlaceholdersToBorder):
     bl_description = "Replace all placeholders to border strip."
     bl_options = {"REGISTER", "UNDO"}
 
+    _messages_no_placeholder = (
+        "placeholderがありません。",
+        "1つ以上のplaceholderを追加してください!!",
+    )
+
     def get_target_placeholders(self, context: Context):
         return [strip for strip in context.strips if is_placeholder(strip)]
-
-
-def add_border_strip(context, target_strip_list):
-    utils.showMessageBox(message=f"add border strip!!: {len(target_strip_list)}")
-    for strip in target_strip_list:
-        rect = utils.get_strip_info(strip)
-        print(rect)
-    return {"CANCELLED"}
 
 
 class_list = [
