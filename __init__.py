@@ -20,6 +20,9 @@ bl_info = {
 class BordermanProperties(bpy.types.PropertyGroup):
     """Groups all properties for this addon together."""
 
+    image_dir: bpy.props.StringProperty(
+        subtype="DIR_PATH", default="//borderman_imgs"
+    )  # type: ignore
     shape_type: bpy.props.EnumProperty(
         name="Shape",
         description="Type of shape",
@@ -30,6 +33,7 @@ class BordermanProperties(bpy.types.PropertyGroup):
         subtype="COLOR_GAMMA", min=0, max=1.0, size=4, default=(1.0, 0, 0, 1)
     )  # type: ignore
     border_size: bpy.props.IntProperty(default=10, min=0, max=100)  # type: ignore
+    corner_radius: bpy.props.IntProperty(default=0, min=0, max=100)  # type: ignore
 
 
 class MainPanel(bpy.types.Panel):
@@ -54,8 +58,11 @@ class MainPanel(bpy.types.Panel):
         layout.label(text="Adding Border:")
         box = layout.box()
         box.prop(props, "shape_type", text="Shape")
-        box.prop(props, "border_color", text="Color")
-        box.prop(props, "border_size", text="Size")
+
+        box.prop(props, "border_color", text="Border Color")
+        box.prop(props, "border_size", text="Border Size")
+        if props.shape_type == "rectangle":
+            box.prop(props, "corner_radius", text="Corner Radius")
         layout.separator()
 
         box = layout.box()
