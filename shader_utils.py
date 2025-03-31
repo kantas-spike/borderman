@@ -32,8 +32,8 @@ def ellipse_border_shader():
 
     shader_info = gpu.types.GPUShaderCreateInfo()
     shader_info.push_constant("VEC2", "boxSize")
-    shader_info.push_constant("VEC2", "innerSize")
     shader_info.push_constant("VEC4", "borderColor")
+    shader_info.push_constant("FLOAT", "borderSize")
     shader_info.vertex_in(0, "VEC3", "position")
     shader_info.vertex_out(vert_out)
     shader_info.fragment_out(0, "VEC4", "FragColor")
@@ -76,10 +76,8 @@ def ellipse_border_shader():
         return (dot(p/ab,p/ab)>1.0) ? d : -d;
     }
     void main() {
-      float d1 = sdEllipse(pos.xy, boxSize);
-      float d2 = sdEllipse(pos.xy, innerSize);
-      float d = max(d1, -d2);
-      if (d <= 0) {
+      float d = sdEllipse(pos.xy, boxSize);
+      if (-borderSize <= d && d <= 0) {
         FragColor = borderColor;
       } else {
         FragColor = vec4(vec3(0.0), 0.0);
@@ -99,8 +97,8 @@ def rounded_rectagle_border_shader():
 
     shader_info = gpu.types.GPUShaderCreateInfo()
     shader_info.push_constant("VEC2", "boxSize")
-    shader_info.push_constant("VEC2", "innerSize")
     shader_info.push_constant("VEC4", "borderColor")
+    shader_info.push_constant("FLOAT", "borderSize")
     shader_info.push_constant("FLOAT", "cornerRadius")
     shader_info.vertex_in(0, "VEC3", "position")
     shader_info.vertex_out(vert_out)
@@ -123,10 +121,8 @@ def rounded_rectagle_border_shader():
         return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - r;
     }
     void main() {
-      float d1 = sdBox(pos.xy, boxSize, cornerRadius);
-      float d2 = sdBox(pos.xy, innerSize, 0);
-      float d = max(d1, -d2);
-      if (d <= 0) {
+      float d = sdBox(pos.xy, boxSize, cornerRadius);
+      if ( -borderSize <= d && d <= 0) {
         FragColor = borderColor;
       } else {
         FragColor = vec4(vec3(0.0), 0.0);
@@ -140,7 +136,7 @@ def rounded_rectagle_border_shader():
     return shader
 
 
-def draw_rounded_rectagle_border(border_rect, inner_rect, border_color, corner_radius):
+def draw_rounded_rectagle_border(border_rect, border_color, border_size, corner_radius):
     offscreen_rect = get_offscreen_info(border_rect)
     with gpu.matrix.push_pop():
         shader = rounded_rectagle_border_shader()
@@ -162,11 +158,8 @@ def draw_rounded_rectagle_border(border_rect, inner_rect, border_color, corner_r
             "boxSize",
             (border_rect.w / offscreen_rect.w, border_rect.h / offscreen_rect.h),
         )
-        shader.uniform_float(
-            "innerSize",
-            (inner_rect.w / offscreen_rect.w, inner_rect.h / offscreen_rect.h),
-        )
         shader.uniform_float("borderColor", border_color)
+        shader.uniform_float("borderSize", border_size / (offscreen_rect.w / 2))
         shader.uniform_float(
             "cornerRadius",
             corner_radius / offscreen_rect.w,
@@ -174,7 +167,7 @@ def draw_rounded_rectagle_border(border_rect, inner_rect, border_color, corner_r
         batch.draw(shader)
 
 
-def draw_ellipse_border(border_rect, inner_rect, border_color):
+def draw_ellipse_border(border_rect, border_color, border_size):
     offscreen_rect = get_offscreen_info(border_rect)
     with gpu.matrix.push_pop():
         shader = ellipse_border_shader()
@@ -196,9 +189,6 @@ def draw_ellipse_border(border_rect, inner_rect, border_color):
             "boxSize",
             (border_rect.w / offscreen_rect.w, border_rect.h / offscreen_rect.h),
         )
-        shader.uniform_float(
-            "innerSize",
-            (inner_rect.w / offscreen_rect.w, inner_rect.h / offscreen_rect.h),
-        )
         shader.uniform_float("borderColor", border_color)
+        shader.uniform_float("borderSize", border_size / (offscreen_rect.w / 2))
         batch.draw(shader)

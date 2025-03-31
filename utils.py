@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import os
 import secrets
 
+from mathutils import Matrix
 import gpu
 from . import shader_utils
 
@@ -168,24 +169,28 @@ def create_border_image(
         fb = gpu.state.active_framebuffer_get()
         fb.clear(color=(0.0, 0.0, 0.0, 0.0))
 
-        print(f"shape_type: {shape_type}")
-        if shape_type == "rectangle":
-            # shader_utils.draw_rectagle_border(border_rect, strip_rect, border_color)
-            shader_utils.draw_rounded_rectagle_border(
-                border_rect, strip_rect, border_color, corner_radius
-            )
-        else:
-            shader_utils.draw_ellipse_border(border_rect, strip_rect, border_color)
+        with gpu.matrix.push_pop():
+            # reset matrices -> use normalized device coordinates [-1, 1]
+            gpu.matrix.load_matrix(Matrix.Identity(4))
+            gpu.matrix.load_projection_matrix(Matrix.Identity(4))
 
-        buffer = fb.read_color(
-            offscreen_rect.offset_x,
-            offscreen_rect.offset_y,
-            border_rect.w,
-            border_rect.h,
-            4,
-            0,
-            "UBYTE",
-        )
+            print(f"shape_type: {shape_type}")
+            if shape_type == "rectangle":
+                shader_utils.draw_rounded_rectagle_border(
+                    border_rect, border_color, border_size, corner_radius
+                )
+            else:
+                shader_utils.draw_ellipse_border(border_rect, border_color, border_size)
+
+            buffer = fb.read_color(
+                offscreen_rect.offset_x,
+                offscreen_rect.offset_y,
+                border_rect.w,
+                border_rect.h,
+                4,
+                0,
+                "UBYTE",
+            )
 
     offscreen.free()
     if image_name in bpy.data.images:
