@@ -165,14 +165,9 @@ def create_border_image(
     )
 
     image_name = _make_unique_name()
-    screen_size = max(border_rect.w, border_rect.h)
-    screen_offset = (0, 0)
-    if border_rect.w > border_rect.h:
-        screen_offset = (0, round((border_rect.w - border_rect.h) / 2))
-    elif border_rect.w < border_rect.h:
-        screen_offset = (round((border_rect.h - border_rect.w) / 2), 0)
+    offscreen_rect = shader_utils.get_offscreen_info(border_rect)
 
-    offscreen = gpu.types.GPUOffScreen(screen_size, screen_size)
+    offscreen = gpu.types.GPUOffScreen(offscreen_rect.w, offscreen_rect.h)
 
     with offscreen.bind():
         fb = gpu.state.active_framebuffer_get()
@@ -188,8 +183,8 @@ def create_border_image(
             shader_utils.draw_ellipse_border(border_rect, strip_rect, border_color)
 
         buffer = fb.read_color(
-            screen_offset[0],
-            screen_offset[1],
+            offscreen_rect.offset_x,
+            offscreen_rect.offset_y,
             border_rect.w,
             border_rect.h,
             4,

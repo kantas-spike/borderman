@@ -1,5 +1,29 @@
 import gpu
 from gpu_extras.batch import batch_for_shader
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class OffscreenInfo:
+    w: int
+    h: int
+    offset_x: int
+    offset_y: int
+
+
+def get_offscreen_info(border_rect):
+    screen_size = max(border_rect.w, border_rect.h)
+    diff_of_size = abs(border_rect.w - border_rect.h)
+    if diff_of_size % 2 != 0:
+        screen_size += 1
+
+    screen_offset = (0, 0)
+    if border_rect.w > border_rect.h:
+        screen_offset = (0, round((screen_size - border_rect.h) / 2))
+    elif border_rect.w < border_rect.h:
+        screen_offset = (round((screen_size - border_rect.w) / 2), 0)
+
+    return OffscreenInfo(screen_size, screen_size, screen_offset[0], screen_offset[1])
 
 
 def ellipse_border_shader():
@@ -117,7 +141,7 @@ def rounded_rectagle_border_shader():
 
 
 def draw_rounded_rectagle_border(border_rect, inner_rect, border_color, corner_radius):
-    screen_size = max(border_rect.w, border_rect.h)
+    offscreen_rect = get_offscreen_info(border_rect)
     with gpu.matrix.push_pop():
         shader = rounded_rectagle_border_shader()
         batch = batch_for_shader(
@@ -135,22 +159,23 @@ def draw_rounded_rectagle_border(border_rect, inner_rect, border_color, corner_r
             },
         )
         shader.uniform_float(
-            "boxSize", (border_rect.w / screen_size, border_rect.h / screen_size)
+            "boxSize",
+            (border_rect.w / offscreen_rect.w, border_rect.h / offscreen_rect.h),
         )
         shader.uniform_float(
             "innerSize",
-            (inner_rect.w / screen_size, inner_rect.h / screen_size),
+            (inner_rect.w / offscreen_rect.w, inner_rect.h / offscreen_rect.h),
         )
         shader.uniform_float("borderColor", border_color)
         shader.uniform_float(
             "cornerRadius",
-            corner_radius / screen_size,
+            corner_radius / offscreen_rect.w,
         )
         batch.draw(shader)
 
 
 def draw_ellipse_border(border_rect, inner_rect, border_color):
-    screen_size = max(border_rect.w, border_rect.h)
+    offscreen_rect = get_offscreen_info(border_rect)
     with gpu.matrix.push_pop():
         shader = ellipse_border_shader()
         batch = batch_for_shader(
@@ -168,11 +193,12 @@ def draw_ellipse_border(border_rect, inner_rect, border_color):
             },
         )
         shader.uniform_float(
-            "boxSize", (border_rect.w / screen_size, border_rect.h / screen_size)
+            "boxSize",
+            (border_rect.w / offscreen_rect.w, border_rect.h / offscreen_rect.h),
         )
         shader.uniform_float(
             "innerSize",
-            (inner_rect.w / screen_size, inner_rect.h / screen_size),
+            (inner_rect.w / offscreen_rect.w, inner_rect.h / offscreen_rect.h),
         )
         shader.uniform_float("borderColor", border_color)
         batch.draw(shader)
