@@ -1,13 +1,8 @@
-if "bpy" not in locals():
-    import bpy
-    from bpy.types import Context, Event
-    import datetime
-    import os
-    from . import utils
-else:
-    import importlib
-
-    importlib.reload(utils)
+import bpy
+from bpy.types import Context, Event
+import datetime
+import os
+from . import utils
 
 
 DEFAULT_PLACEHOLDER_DURATION = 30

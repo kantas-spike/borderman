@@ -1,16 +1,11 @@
-if "bpy" not in locals():
-    import bpy
-    import datetime
-    from dataclasses import dataclass
-    import os
-    import secrets
+import bpy
+import datetime
+from dataclasses import dataclass
+import os
+import secrets
 
-    import gpu
-    from . import shader_utils
-else:
-    import importlib
-
-    importlib.reload(shader_utils)
+import gpu
+from . import shader_utils
 
 
 @dataclass(frozen=True)

@@ -1,10 +1,16 @@
-if "bpy" not in locals():
-    import bpy
-    from . import ops
-else:
-    import importlib
+import sys
 
-    importlib.reload(ops)
+# relaod時に、古いaddonとそのサブモジュールを一旦削除する
+if "bpy" in locals():
+    if __name__ in sys.modules:
+        del sys.modules[__name__]
+    submodules = __name__ + "."
+    for name in tuple(sys.modules):
+        if name.startswith(submodules):
+            del sys.modules[name]
+
+import bpy
+from . import ops
 
 bl_info = {
     "name": "Borderman",
