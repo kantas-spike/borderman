@@ -43,8 +43,8 @@ class BordermanProperties(bpy.types.PropertyGroup):
     border_color: bpy.props.FloatVectorProperty(
         subtype="COLOR_GAMMA", min=0, max=1.0, size=4, default=(1.0, 0, 0, 1)
     )  # type: ignore
-    border_size: bpy.props.IntProperty(default=10, min=0, max=100)  # type: ignore
-    corner_radius: bpy.props.IntProperty(default=0, min=0, max=100)  # type: ignore
+    border_size: bpy.props.IntProperty(default=20, min=1, max=200)  # type: ignore
+    corner_radius: bpy.props.IntProperty(default=0, min=0, max=200)  # type: ignore
 
 
 class MainPanel(bpy.types.Panel):
