@@ -29,6 +29,11 @@ class BordermanProperties(bpy.types.PropertyGroup):
     image_dir: bpy.props.StringProperty(
         subtype="DIR_PATH", default="//borderman_imgs"
     )  # type: ignore
+    placeholder_color: bpy.props.FloatVectorProperty(
+        subtype="COLOR_GAMMA", min=0, max=1.0, size=4, default=(0, 1.0, 0, 0.35)
+    )  # type: ignore
+    placeholder_channel_no: bpy.props.IntProperty(default=3, min=1, max=128)  # type: ignore
+    placeholder_duration: bpy.props.IntProperty(default=30, min=10, max=600)  # type: ignore
     shape_type: bpy.props.EnumProperty(
         name="Shape",
         description="Type of shape",
@@ -46,7 +51,7 @@ class MainPanel(bpy.types.Panel):
     bl_space_type = "SEQUENCE_EDITOR"
     bl_region_type = "UI"
     bl_category = "Borderman"
-    bl_label = "Borderman"
+    bl_label = "Operations"
     bl_idname = "BORDERMAN_PT_MainPanel"
 
     @classmethod
@@ -64,14 +69,15 @@ class MainPanel(bpy.types.Panel):
 
         layout.label(text="Adding Border:")
         box = layout.box()
-        box.prop(props, "shape_type", text="Shape")
+        box.label(text="Options:")
+        inner_box = box.box()
+        inner_box.prop(props, "shape_type", text="Shape")
 
-        box.prop(props, "border_color", text="Border Color")
-        box.prop(props, "border_size", text="Border Size")
+        inner_box.prop(props, "border_color", text="Border Color")
+        inner_box.prop(props, "border_size", text="Border Size")
         if props.shape_type == "rectangle":
-            box.prop(props, "corner_radius", text="Corner Radius")
-        layout.separator(factor=0.2)
-        box = layout.box()
+            inner_box.prop(props, "corner_radius", text="Corner Radius")
+        box.separator(factor=0.1)
         box.operator(ops.ReplaceSelectedPlaceholdersToBorder.bl_idname)
         box.operator(ops.ReplaceAllPlaceholdersToBorder.bl_idname)
 
@@ -81,8 +87,32 @@ class MainPanel(bpy.types.Panel):
         box.operator(ops.DeleteUnusedBorderImages.bl_idname)
 
 
+class SettingsPanel(bpy.types.Panel):
+    bl_space_type = "SEQUENCE_EDITOR"
+    bl_region_type = "UI"
+    bl_category = "Borderman"
+    bl_label = "Settings"
+    bl_idname = "BORDERMAN_PT_SettingsPanel"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.space_data.view_type == "SEQUENCER"
+
+    def draw(self, context):
+        props = context.scene.borderman_props
+        layout = self.layout
+        layout.prop(props, "image_dir", text="Image Dir")
+        layout.separator(factor=0.2)
+        layout.label(text="Placeholder:")
+        box = layout.box()
+        box.prop(props, "placeholder_color", text="Color")
+        box.prop(props, "placeholder_channel_no", text="Channel No")
+        box.prop(props, "placeholder_duration", text="Duration")
+
+
 # アドオンで使用するために定義したクラス
-class_list = ops.class_list + [BordermanProperties, MainPanel]
+class_list = ops.class_list + [BordermanProperties, MainPanel, SettingsPanel]
 
 
 def register_props():

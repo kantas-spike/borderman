@@ -7,7 +7,6 @@ from . import utils
 
 
 DEFAULT_PLACEHOLDER_DURATION = 30
-DEFAULT_PLACEHOLDER_CHANNEL_NO = 3
 CUSTOM_KEY_GENERATER = "generated_by"
 CUSTOM_KEY_STRIP_TYPE = "strip_type"
 CUSTOM_KEY_PLACEHOLDER_ID = "placeholder_id"
@@ -50,12 +49,13 @@ class AddPlaceholder(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
+        props = context.scene.borderman_props
         cur_frame = bpy.context.scene.frame_current
         seqs = bpy.context.scene.sequence_editor.strips
-        frame_end = cur_frame + DEFAULT_PLACEHOLDER_DURATION
+        frame_end = cur_frame + props.placeholder_duration
 
         target_channel = utils.guess_available_channel(
-            cur_frame, frame_end, DEFAULT_PLACEHOLDER_CHANNEL_NO, seqs
+            cur_frame, frame_end, props.placeholder_channel_no, seqs
         )
 
         placeholder_strip: bpy.types.ColorStrip = seqs.new_effect(
@@ -70,8 +70,8 @@ class AddPlaceholder(bpy.types.Operator):
         placeholder_strip.transform.origin[0] = 0
         placeholder_strip.transform.origin[1] = 1.0
         utils.move_center(placeholder_strip)
-        placeholder_strip.color = (0, 1, 0)
-        placeholder_strip.blend_alpha = 0.35
+        placeholder_strip.color = props.placeholder_color[:3]
+        placeholder_strip.blend_alpha = props.placeholder_color[-1]
         placeholder_strip[CUSTOM_KEY_GENERATER] = ADDON_NAME
         placeholder_strip[CUSTOM_KEY_STRIP_TYPE] = STRIP_TYPE_PLACEHOLDER
         placeholder_strip[CUSTOM_KEY_PLACEHOLDER_ID] = placeholder_strip.name
