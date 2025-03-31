@@ -60,6 +60,7 @@ class MainPanel(bpy.types.Panel):
         layout.label(text="Placeholder:")
         box = layout.box()
         box.operator(ops.AddPlaceholder.bl_idname)
+        layout.separator()
 
         layout.label(text="Adding Border:")
         box = layout.box()
@@ -69,11 +70,15 @@ class MainPanel(bpy.types.Panel):
         box.prop(props, "border_size", text="Border Size")
         if props.shape_type == "rectangle":
             box.prop(props, "corner_radius", text="Corner Radius")
-        layout.separator()
-
+        layout.separator(factor=0.2)
         box = layout.box()
         box.operator(ops.ReplaceSelectedPlaceholdersToBorder.bl_idname)
         box.operator(ops.ReplaceAllPlaceholdersToBorder.bl_idname)
+
+        layout.separator()
+        layout.label(text="Maintenance:")
+        box = layout.box()
+        box.operator(ops.DeleteUnusedBorderImages.bl_idname)
 
 
 # アドオンで使用するために定義したクラス

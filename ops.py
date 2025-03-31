@@ -1,6 +1,7 @@
 import bpy
 from bpy.types import Context, Event
 import datetime
+import glob
 import os
 from . import utils
 
@@ -19,6 +20,16 @@ def is_placeholder(strip: bpy.types.Strip):
     if (
         strip.get(CUSTOM_KEY_GENERATER) == ADDON_NAME
         and strip.get(CUSTOM_KEY_STRIP_TYPE) == STRIP_TYPE_PLACEHOLDER
+    ):
+        return True
+    else:
+        return False
+
+
+def is_border_image(strip: bpy.types.Strip):
+    if (
+        strip.get(CUSTOM_KEY_GENERATER) == ADDON_NAME
+        and strip.get(CUSTOM_KEY_STRIP_TYPE) == STRIP_TYPE_BORDER
     ):
         return True
     else:
@@ -69,6 +80,70 @@ class AddPlaceholder(bpy.types.Operator):
         context.scene.sequence_editor.active_strip = placeholder_strip
 
         return {"FINISHED"}
+
+
+class DeleteUnusedBorderImages(bpy.types.Operator):
+    bl_idname = "borderman.delete_unused_borderimages"
+    bl_label = "Delete unused border images"
+    bl_description = "Delete unused border images."
+    bl_options = {"REGISTER", "UNDO"}
+
+    def get_border_images(self, context: Context):
+        results = []
+        for strip in context.sequences:
+            if not is_border_image(strip):
+                continue
+            img_strip: bpy.types.ImageStrip = strip
+            elm = img_strip.elements[0]
+            if not elm:
+                continue
+            img_path = os.path.join(img_strip.directory, elm.filename)
+            abs_img_path = bpy.path.abspath(img_path)
+            results.append(abs_img_path)
+        return results
+
+    def delete_unused_border_iamges(self, context, image_dir):
+        used_list = self.get_border_images(context)
+        abs_image_dir = bpy.path.abspath(image_dir)
+        path_pattern = os.path.join(abs_image_dir, "*.png")
+        for img_path in glob.glob(path_pattern):
+            if img_path not in used_list:
+                print("remove unused image...", img_path)
+                os.remove(img_path)
+        return {"FINISHED"}
+
+    def execute(self, context):
+        props = context.scene.borderman_props
+        if not props.image_dir:
+            utils.showMessageBox(
+                messages=self._messages_no_placeholder,
+                title="枠線画像ファイルの保存ディレクトリが指定されていません。",
+                icon="ERROR",
+            )
+            return {"CANCELLED"}
+        image_dir = utils.normalize_image_dir(props.image_dir)
+        if not image_dir:
+            utils.showMessageBox(
+                messages=self._messages_no_placeholder,
+                title="枠線画像ファイルの保存ディレクトリが指定されていません。",
+                icon="ERROR",
+            )
+        if not image_dir:
+            utils.showMessageBox(
+                messages=self._messages_no_placeholder,
+                title="プロジェクトを保存してから実行してください。",
+                icon="ERROR",
+            )
+            return {"CANCELLED"}
+        if not os.path.exists(image_dir):
+            utils.showMessageBox(
+                messages=self._messages_no_placeholder,
+                title="枠線画像ファイルの保存ディレクトリが存在しません。",
+                icon="ERROR",
+            )
+            return {"CANCELLED"}
+
+        return self.delete_unused_border_iamges(context, image_dir)
 
 
 class ReplacePlaceholdersToBorder(bpy.types.Operator):
@@ -232,4 +307,5 @@ class_list = [
     AddPlaceholder,
     ReplaceSelectedPlaceholdersToBorder,
     ReplaceAllPlaceholdersToBorder,
+    DeleteUnusedBorderImages,
 ]
