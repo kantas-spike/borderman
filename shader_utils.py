@@ -39,12 +39,11 @@ def ellipse_border_shader():
     shader_info.fragment_out(0, "VEC4", "FragColor")
 
     shader_info.vertex_source(
-        """"
-    void main() {
-      pos = position;
-      gl_Position = vec4(position, 1.0);
-    }
-    """
+        "void main() "
+        "{"
+        "  pos = position;"
+        "  gl_Position = vec4(position, 1.0);"
+        "}"
     )
 
     shader_info.fragment_source(
@@ -105,12 +104,11 @@ def rounded_rectagle_border_shader():
     shader_info.fragment_out(0, "VEC4", "FragColor")
 
     shader_info.vertex_source(
-        """"
-    void main() {
-      pos = position;
-      gl_Position = vec4(position, 1.0);
-    }
-    """
+        "void main() "
+        "{"
+        "  pos = position;"
+        "  gl_Position = vec4(position, 1.0);"
+        "}"
     )
 
     shader_info.fragment_source(
