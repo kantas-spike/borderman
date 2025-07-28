@@ -3,6 +3,7 @@ from bpy.types import Context, Event
 import datetime
 import glob
 import os
+import re
 from . import utils
 
 
@@ -42,6 +43,33 @@ def is_addon_generated(strip: bpy.types.Strip):
         return False
 
 
+def get_max_strip_no(context: bpy.types.Context, prefix):
+    max_no = 0
+    pattern = fr'\A{prefix}_(\d+)'
+    for strip in context.scene.sequence_editor.strips_all:
+        if not is_addon_generated(strip):
+            continue
+        strip_name = strip.name
+        if not strip_name.startswith(prefix):
+            continue
+        # prefixあり
+        m = re.match(pattern, strip_name)
+        if not m:
+            continue
+        strip_no = int(m.group(1))
+        max_no = max(max_no, strip_no)
+    return max_no
+
+
+def get_strip_name(context, props):
+    if props.naming_rule == "auto":
+        return f"placeholder_{datetime.datetime.now().timestamp()}"
+    else:
+        prefix = props.prefix
+        strip_no = get_max_strip_no(context, prefix) + 1
+        return f"{prefix}_{strip_no:03}"
+
+
 class AddPlaceholder(bpy.types.Operator):
     bl_idname = "borderman.add_placeholder"
     bl_label = "Add a placeholder"
@@ -58,8 +86,9 @@ class AddPlaceholder(bpy.types.Operator):
             cur_frame, frame_end, props.placeholder_channel_no, seqs
         )
 
+        strip_name = get_strip_name(context, props)
         placeholder_strip: bpy.types.ColorStrip = seqs.new_effect(
-            name=f"placeholder_{datetime.datetime.now().timestamp()}",
+            name=strip_name,
             type="COLOR",
             frame_start=cur_frame,
             frame_end=frame_end,
