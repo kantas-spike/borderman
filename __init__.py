@@ -45,6 +45,16 @@ class BordermanProperties(bpy.types.PropertyGroup):
     )  # type: ignore
     border_size: bpy.props.IntProperty(default=20, min=1, max=200)  # type: ignore
     corner_radius: bpy.props.IntProperty(default=0, min=0, max=200)  # type: ignore
+    # Strip Naming Rule
+    naming_rule: bpy.props.EnumProperty(
+        name="NamingRule",
+        description="rule",
+        items=[("auto", "Auto", "自動"), ("prefix", "Prefix", "プレフィックス")],
+        default="prefix",
+    )  # type: ignore
+    prefix: bpy.props.StringProperty(
+        default="枠線_"
+    )  # type: ignore
 
 
 class MainPanel(bpy.types.Panel):
@@ -109,6 +119,11 @@ class SettingsPanel(bpy.types.Panel):
         box.prop(props, "placeholder_color", text="Color")
         box.prop(props, "placeholder_channel_no", text="Channel No")
         box.prop(props, "placeholder_duration", text="Duration")
+        layout.label(text="Strip Naming Rule:")
+        box = layout.box()
+        box.prop(props, "naming_rule", text="Naming Rule", expand=True)
+        if props.naming_rule == "prefix":
+            box.prop(props, "prefix", text="Prefix")
 
 
 # アドオンで使用するために定義したクラス
