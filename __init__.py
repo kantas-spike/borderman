@@ -1,16 +1,16 @@
-import sys
+# BlenderのReload Scriptsによるモジュールリロード対応
+if "bpy" not in locals():
+    import bpy
+    import importlib
+    from . import shader_utils
+    from . import utils
+    from . import ops
+else:
+    # 最新のモジュールを再読み込み
+    importlib.reload(shader_utils)
+    importlib.reload(utils)
+    importlib.reload(ops)
 
-# relaod時に、古いaddonとそのサブモジュールを一旦削除する
-if "bpy" in locals():
-    if __name__ in sys.modules:
-        del sys.modules[__name__]
-    submodules = __name__ + "."
-    for name in tuple(sys.modules):
-        if name.startswith(submodules):
-            del sys.modules[name]
-
-import bpy
-from . import ops
 
 bl_info = {
     "name": "Borderman",
