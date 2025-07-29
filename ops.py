@@ -45,7 +45,7 @@ def is_addon_generated(strip: bpy.types.Strip):
 
 def get_max_strip_no(context: bpy.types.Context, prefix):
     max_no = 0
-    pattern = fr'\A{prefix}_(\d+)'
+    pattern = fr'\A{re.escape(prefix)}(\d+)(.png)?'
     for strip in context.scene.sequence_editor.strips_all:
         if not is_addon_generated(strip):
             continue
