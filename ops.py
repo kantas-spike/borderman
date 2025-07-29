@@ -67,7 +67,7 @@ def get_strip_name(context, props):
     else:
         prefix = props.prefix
         strip_no = get_max_strip_no(context, prefix) + 1
-        return f"{prefix}_{strip_no:03}"
+        return f"{prefix}{strip_no:03}"
 
 
 class AddPlaceholder(bpy.types.Operator):
