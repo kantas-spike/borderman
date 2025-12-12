@@ -91,7 +91,7 @@ class AddPlaceholder(bpy.types.Operator):
             name=strip_name,
             type="COLOR",
             frame_start=cur_frame,
-            frame_end=frame_end,
+            length=props.placeholder_duration,
             channel=target_channel,
         )
         placeholder_strip.transform.scale_x = 0.2
@@ -119,7 +119,7 @@ class DeleteUnusedBorderImages(bpy.types.Operator):
 
     def get_border_images(self, context: Context):
         results = []
-        for strip in context.sequences:
+        for strip in context.strips:
             if not is_border_image(strip):
                 continue
             img_strip: bpy.types.ImageStrip = strip
