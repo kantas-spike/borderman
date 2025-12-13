@@ -17,7 +17,7 @@ bl_info = {
     "description": "Adds a border image strip.",
     "author": "kanta",
     "version": (0, 0, 1),
-    "blender": (4, 4, 0),
+    "blender": (5, 0, 0),
     "location": "VSE > Sidebar",
     "category": "Sequencer",
 }
